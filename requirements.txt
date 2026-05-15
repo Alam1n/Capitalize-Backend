@@ -1,0 +1,8 @@
+flask
+flask-cors
+gunicorn
+requests
+pandas
+yfinance
+textblob
+python-dotenv
