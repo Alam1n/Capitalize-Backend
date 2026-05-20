@@ -6,3 +6,5 @@ pandas
 yfinance
 textblob
 python-dotenv
+flask-bcrypt
+flask-jwt-extended
