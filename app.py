@@ -59,7 +59,42 @@ def get_score_map():
     final_df = pd.merge(base_df, df, on='currency', how='left').fillna(0)
     return dict(zip(final_df.currency, final_df.score))
 
-
+def build_database():
+    print(f"📦 Target Database: {DB_PATH}")
+    
+    # Connect (this creates the file if it doesn't exist)
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    
+    # Create the users table
+    print("🔨 Creating 'users' table...")
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL
+        )
+    ''')
+    
+    # Define your client's credentials here
+    client_username = "admin"
+    client_password = "acb2c383ce866fd5"  # Change this to whatever they want
+    
+    print(f"🔑 Hashing security key for operator '{client_username}'...")
+    hashed_password = bcrypt.generate_password_hash(client_password).decode('utf-8')
+    
+    # Insert or replace the user info safely
+    try:
+        cursor.execute('''
+            INSERT OR REPLACE INTO users (username, password_hash)
+            VALUES (?, ?)
+        ''', (client_username, hashed_password))
+        conn.commit()
+        print("✅ SUCCESS: Admin user injected successfully!")
+    except Exception as e:
+        print(f"❌ FAILED to write user data: {e}")
+    finally:
+        conn.close()
 
 @app.route('/api/dashboard', methods=['GET']) 
 @jwt_required()
@@ -191,5 +226,6 @@ def get_dashboard():
     })
 
 if __name__ == '__main__':
+    build_database()
     port = int(os.environ.get("PORT", 10000)) 
     app.run(host='0.0.0.0', port=port)
