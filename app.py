@@ -1,18 +1,49 @@
 from capitalize_auto import run_all
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from flask_cors import CORS
 import sqlite3
 import pandas as pd
 import subprocess
+import requests
 from datetime import datetime
-import os
+import os 
+from flask_bcrypt import Bcrypt
+from flask_jwt_extended import JWTManager, create_access_token, jwt_required
+
 
 
 app = Flask(__name__)
 CORS(app) # Allows React to access the API
 
+bcrypt = Bcrypt(app)
+# Fallback string ensures local execution never breaks if .env isn't set up
+app.config['JWT_SECRET_KEY'] = os.getenv("JWT_SECRET_KEY", "1c168dc16f8d989dc7982e58fc352429")
+jwt = JWTManager(app)
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE_DIR, 'capitalz_expert.db')
+
+@app.route('/api/login', methods=['POST'])
+def login():
+    
+    data = request.json
+    username = data.get('username')
+    password = data.get('password')
+
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, password_hash FROM users WHERE username = ?", (username,))
+    user = cursor.fetchone()
+    conn.close()
+
+    if user and bcrypt.check_password_hash(user[1], password):
+        # Successful Login
+        access_token = create_access_token(identity=str(user[0]))
+        return jsonify(access_token=access_token), 200
+    
+    return jsonify({"msg": "Invalid username or password"}), 401
+
+
 
 def get_score_map():
     
@@ -30,12 +61,14 @@ def get_score_map():
 
 
 
-@app.route('/api/dashboard', methods=['GET'])
+@app.route('/api/dashboard', methods=['GET']) 
+@jwt_required()
 def get_dashboard():
     run_all()
     scores = get_score_map()
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
+    set
 
     # Fetch News - Explicitly naming keys and ensuring floats
     cursor.execute("SELECT event_name, actual FROM manual_entries WHERE impact = 'news_feed' ORDER BY timestamp DESC LIMIT 5")
